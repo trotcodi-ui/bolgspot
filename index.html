@@ -1,149 +1,21 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KR Lotto Web | Lotto Statistics Tool</title>
-
-<style>
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-  background: #f5f6f8;
-  margin: 0;
-  padding: 20px;
-}
-
-.container {
-  max-width: 720px;
-  margin: 0 auto;
-}
-
-.card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 20px;
-}
-
-h1 {
-  font-size: 22px;
-  margin-bottom: 20px;
-}
-
-h2 {
-  font-size: 18px;
-  margin-bottom: 10px;
-}
-
-p {
-  font-size: 14px;
-  color: #555;
-  line-height: 1.6;
-}
-
-input, select, button {
-  width: 100%;
-  padding: 12px;
-  margin-top: 10px;
-  font-size: 15px;
-}
-
-button {
-  background: #1f73d2;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-button:hover {
-  background: #1558a5;
-}
-
-.result {
-  margin-top: 15px;
-}
-
-.number-line {
-  margin: 6px 0;
-}
-
-.ball {
-  display: inline-block;
-  width: 34px;
-  height: 34px;
-  line-height: 34px;
-  text-align: center;
-  border-radius: 50%;
-  background: #e8f2ff;
-  margin-right: 6px;
-  font-weight: bold;
-}
-
-.sub-title {
-  font-weight: bold;
-  margin-top: 15px;
-  margin-bottom: 6px;
-}
-</style>
-</head>
-
-<body>
-<div class="container">
-
-<h1>로또 번호 이력 조회 및 회차별 통계 분석 도구</h1>
-
-<div class="card">
-  <h2>1. 로또 번호 이력 조회</h2>
-  <p>
-    입력한 로또 번호가 과거 회차에서 1등, 2등, 3등 당첨 이력이 있는지 확인합니다.
-  </p>
-
-  <input id="lottoInput" placeholder="예: 3,12,19,25,33,42">
-  <button onclick="checkHistory()">이력 조회</button>
-  <div id="historyResult" class="result"></div>
-</div>
-
-<div class="card">
-  <h2>2. 회차 선택 통계 기반 번호 분석</h2>
-  <p>
-    선택한 회차 수 동안의 출현 빈도를 기준으로 통계를 분석하고,
-    이를 기반으로 추천 번호를 생성합니다.
-  </p>
-
-  <select id="roundSelect">
-    <option value="10">최근 10회</option>
-    <option value="20">최근 20회</option>
-    <option value="30">최근 30회</option>
-    <option value="50">최근 50회</option>
-    <option value="100">최근 100회</option>
-  </select>
-
-  <button onclick="analyzeStats()">통계 분석</button>
-
-  <div class="result">
-    <div class="sub-title">가장 많이 나온 숫자</div>
-    <div id="mostNumbers"></div>
-
-    <div class="sub-title">가장 적게 나온 숫자</div>
-    <div id="leastNumbers"></div>
-
-    <div class="sub-title">추천 번호 (5세트)</div>
-    <div id="recommendNumbers"></div>
-  </div>
-</div>
-
-</div>
-
 <script>
 const JSON_URL = "https://raw.githubusercontent.com/trotcodi-ui/2025lotto/main/2025lotto_numbers_1_to_1182_final.json";
 let lottoData = [];
+let dataLoaded = false;
 
 fetch(JSON_URL)
   .then(res => res.json())
-  .then(data => lottoData = data);
+  .then(data => {
+    lottoData = data;
+    dataLoaded = true;
+  });
 
 function checkHistory() {
+  if (!dataLoaded) {
+    alert("데이터 로딩 중입니다. 잠시 후 다시 시도하세요.");
+    return;
+  }
+
   const input = document.getElementById("lottoInput").value;
   const resultDiv = document.getElementById("historyResult");
   resultDiv.innerHTML = "";
@@ -159,43 +31,51 @@ function checkHistory() {
   lottoData.forEach(d => {
     const winNums = d.numbers.slice().sort((a,b)=>a-b);
     const match = nums.filter(n => winNums.includes(n)).length;
-    if (match >= 3) {
-      results.push(`${d.draw_no}회차 : ${match}개 일치`);
-    }
+
+    if (match === 6) results.push(`${d.draw_no}회차 : 1등 (6개 일치)`);
+    else if (match === 5) results.push(`${d.draw_no}회차 : 3등 (5개 일치)`);
+    else if (match === 4) results.push(`${d.draw_no}회차 : 4등 (4개 일치)`);
+    else if (match === 3) results.push(`${d.draw_no}회차 : 5등 (3개 일치)`);
   });
 
   if (results.length === 0) {
-    resultDiv.textContent = "과거 1~3등 당첨 이력이 없습니다.";
+    resultDiv.textContent = "과거 1·3·4·5등 당첨 이력이 없습니다.";
   } else {
-    resultDiv.innerHTML = results.slice(0,5).join("<br>");
+    resultDiv.innerHTML = results.slice(0, 5).join("<br>");
   }
 }
 
 function analyzeStats() {
+  if (!dataLoaded) {
+    alert("데이터 로딩 중입니다. 잠시 후 다시 시도하세요.");
+    return;
+  }
+
   const count = parseInt(document.getElementById("roundSelect").value);
   const recent = lottoData.slice(-count);
 
   const freq = {};
-  for (let i=1;i<=45;i++) freq[i]=0;
+  for (let i = 1; i <= 45; i++) freq[i] = 0;
 
   recent.forEach(d => d.numbers.forEach(n => freq[n]++));
 
   const sorted = Object.entries(freq)
-    .map(([n,c])=>[parseInt(n),c])
-    .sort((a,b)=>b[1]-a[1]);
+    .map(([n, c]) => [parseInt(n), c])
+    .sort((a, b) => b[1] - a[1]);
 
-  showBalls("mostNumbers", sorted.slice(0,6).map(v=>v[0]));
-  showBalls("leastNumbers", sorted.slice(-6).map(v=>v[0]));
-  generateRecommend(sorted.slice(0,20));
+  showBalls("mostNumbers", sorted.slice(0, 6).map(v => v[0]));
+  showBalls("leastNumbers", sorted.slice(-6).map(v => v[0]));
+
+  generateRecommend(sorted.slice(0, 20));
 }
 
 function showBalls(id, numbers) {
   const el = document.getElementById(id);
   el.innerHTML = "";
-  numbers.forEach(n=>{
-    const span=document.createElement("span");
-    span.className="ball";
-    span.textContent=n;
+  numbers.forEach(n => {
+    const span = document.createElement("span");
+    span.className = "ball";
+    span.textContent = n;
     el.appendChild(span);
   });
 }
@@ -204,26 +84,25 @@ function generateRecommend(pool) {
   const container = document.getElementById("recommendNumbers");
   container.innerHTML = "";
 
-  for (let i=0;i<5;i++) {
-    const pick=[];
-    while(pick.length<6){
-      const n=pool[Math.floor(Math.random()*pool.length)][0];
-      if(!pick.includes(n)) pick.push(n);
+  for (let i = 0; i < 5; i++) {
+    const pick = [];
+    while (pick.length < 6) {
+      const n = pool[Math.floor(Math.random() * pool.length)][0];
+      if (!pick.includes(n)) pick.push(n);
     }
-    pick.sort((a,b)=>a-b);
+    pick.sort((a, b) => a - b);
 
-    const line=document.createElement("div");
-    line.className="number-line";
-    pick.forEach(n=>{
-      const span=document.createElement("span");
-      span.className="ball";
-      span.textContent=n;
+    const line = document.createElement("div");
+    line.className = "number-line";
+
+    pick.forEach(n => {
+      const span = document.createElement("span");
+      span.className = "ball";
+      span.textContent = n;
       line.appendChild(span);
     });
+
     container.appendChild(line);
   }
 }
 </script>
-
-</body>
-</html>
